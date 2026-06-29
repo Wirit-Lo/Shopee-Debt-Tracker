@@ -1,4 +1,5 @@
 const STORAGE_KEY = "shopeeDebtTracker.items";
+const API_BASE = "/api";
 
 const form = document.querySelector("#debtForm");
 const debtIdInput = document.querySelector("#debtId");
@@ -7,6 +8,7 @@ const startDateInput = document.querySelector("#startDate");
 const principalInput = document.querySelector("#principal");
 const monthsInput = document.querySelector("#months");
 const interestRateInput = document.querySelector("#interestRate");
+const billingDayInput = document.querySelector("#billingDay");
 const paidInstallmentsInput = document.querySelector("#paidInstallments");
 const resetButton = document.querySelector("#resetButton");
 const exportButton = document.querySelector("#exportButton");
@@ -16,6 +18,7 @@ const clearAllButton = document.querySelector("#clearAllButton");
 const debtList = document.querySelector("#debtList");
 const emptyState = document.querySelector("#emptyState");
 const cardTemplate = document.querySelector("#debtCardTemplate");
+const storageStatus = document.querySelector("#storageStatus");
 
 const totalDebtEl = document.querySelector("#totalDebt");
 const totalPaidEl = document.querySelector("#totalPaid");
@@ -23,9 +26,10 @@ const totalRemainingEl = document.querySelector("#totalRemaining");
 const nextMonthDueEl = document.querySelector("#nextMonthDue");
 const itemCountEl = document.querySelector("#itemCount");
 
-let debts = loadDebts();
+let debts = [];
+let onlineStorage = false;
 
-function loadDebts() {
+function loadLocalDebts() {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
   } catch {
@@ -33,8 +37,85 @@ function loadDebts() {
   }
 }
 
-function saveDebts() {
+function saveLocalDebts() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(debts));
+}
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+function setStorageStatus(isOnline) {
+  onlineStorage = isOnline;
+  storageStatus.textContent = isOnline ? "ข้อมูลกลาง" : "เก็บบนเครื่องนี้";
+  storageStatus.classList.toggle("is-offline", !isOnline);
+}
+
+async function loadDebts() {
+  try {
+    debts = await apiRequest("/debts");
+    setStorageStatus(true);
+  } catch {
+    debts = loadLocalDebts();
+    setStorageStatus(false);
+  }
+
+  render();
+}
+
+async function persistDebt(debt) {
+  if (onlineStorage) {
+    await apiRequest(`/debts/${encodeURIComponent(debt.id)}`, {
+      method: "PUT",
+      body: JSON.stringify(debt)
+    });
+    return;
+  }
+
+  saveLocalDebts();
+}
+
+async function persistAllDebts() {
+  if (onlineStorage) {
+    await apiRequest("/debts/import", {
+      method: "POST",
+      body: JSON.stringify({ debts })
+    });
+    return;
+  }
+
+  saveLocalDebts();
+}
+
+async function removeDebt(id) {
+  if (onlineStorage) {
+    await apiRequest(`/debts/${encodeURIComponent(id)}`, { method: "DELETE" });
+    return;
+  }
+
+  saveLocalDebts();
+}
+
+async function clearDebts() {
+  if (onlineStorage) {
+    await apiRequest("/debts", { method: "DELETE" });
+    return;
+  }
+
+  saveLocalDebts();
 }
 
 function money(value) {
@@ -75,19 +156,35 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function monthEnd(year, monthIndex) {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+function dateWithDay(year, monthIndex, day) {
+  return new Date(year, monthIndex, Math.min(day, monthEnd(year, monthIndex)));
+}
+
 function addMonths(dateString, monthsToAdd) {
   const date = new Date(`${dateString}T00:00:00`);
   if (Number.isNaN(date.getTime())) return null;
 
   const day = date.getDate();
-  const result = new Date(date);
-  result.setMonth(result.getMonth() + monthsToAdd);
+  const targetMonth = date.getMonth() + monthsToAdd;
+  return dateWithDay(date.getFullYear(), targetMonth, day);
+}
 
-  if (result.getDate() !== day) {
-    result.setDate(0);
+function getDueDate(dateString, installment, billingDay) {
+  if (!billingDay) return addMonths(dateString, installment);
+
+  const startDate = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(startDate.getTime())) return null;
+
+  let firstDue = dateWithDay(startDate.getFullYear(), startDate.getMonth(), billingDay);
+  if (firstDue <= startDate) {
+    firstDue = dateWithDay(startDate.getFullYear(), startDate.getMonth() + 1, billingDay);
   }
 
-  return result;
+  return dateWithDay(firstDue.getFullYear(), firstDue.getMonth() + installment - 1, billingDay);
 }
 
 function calculateDebt(debt) {
@@ -100,13 +197,17 @@ function calculateDebt(debt) {
   const monthlyPayment = totalDebt / months;
   const paidAmount = monthlyPayment * paidInstallments;
   const remainingAmount = Math.max(totalDebt - paidAmount, 0);
-  const nextDueDate = paidInstallments >= months ? null : addMonths(debt.startDate, paidInstallments + 1);
+  const billingDay = Number(debt.billingDay) || null;
+  const nextDueDate = paidInstallments >= months
+    ? null
+    : getDueDate(debt.startDate, paidInstallments + 1, billingDay);
 
   return {
     principal,
     months,
     interestRate,
     paidInstallments,
+    billingDay,
     totalInterest,
     totalDebt,
     monthlyPayment,
@@ -122,7 +223,7 @@ function buildSchedule(debt) {
   return Array.from({ length: calc.months }, (_, index) => {
     const installment = index + 1;
     const paid = installment <= calc.paidInstallments;
-    const dueDate = addMonths(debt.startDate, installment);
+    const dueDate = getDueDate(debt.startDate, installment, calc.billingDay);
     const remainingAfterPayment = Math.max(calc.totalDebt - calc.monthlyPayment * installment, 0);
 
     return {
@@ -137,14 +238,20 @@ function buildSchedule(debt) {
 
 function getFormDebt() {
   const months = Math.max(parseInt(monthsInput.value, 10) || 1, 1);
+  const billingDay = parseInt(billingDayInput.value, 10);
+
   return {
     id: debtIdInput.value || createId(),
     name: nameInput.value.trim(),
     startDate: startDateInput.value,
     principal: parseAmount(principalInput.value),
     months,
-    interestRate: Number(interestRateInput.value) || 0,
-    paidInstallments: clamp(parseInt(paidInstallmentsInput.value, 10) || 0, 0, months)
+    interestRate: parseAmount(interestRateInput.value),
+    billingDay: Number.isFinite(billingDay) ? clamp(billingDay, 1, 31) : null,
+    paidInstallments: clamp(parseInt(paidInstallmentsInput.value, 10) || 0, 0, months),
+    createdAt: debtIdInput.value
+      ? debts.find((item) => item.id === debtIdInput.value)?.createdAt || new Date().toISOString()
+      : new Date().toISOString()
   };
 }
 
@@ -186,10 +293,11 @@ function renderList() {
     const calc = calculateDebt(debt);
     const card = cardTemplate.content.firstElementChild.cloneNode(true);
     const isDone = calc.remainingAmount <= 0;
+    const billText = calc.billingDay ? ` · ชำระทุกวันที่ ${calc.billingDay}` : "";
 
     card.querySelector("h3").textContent = debt.name;
     card.querySelector(".meta").textContent =
-      `กดเงิน ${thaiDate(new Date(`${debt.startDate}T00:00:00`))} · เงินต้น ${money(calc.principal)} · ดอก ${calc.interestRate}%/เดือน · ${calc.paidInstallments}/${calc.months} งวด`;
+      `กดเงิน ${thaiDate(new Date(`${debt.startDate}T00:00:00`))} · เงินต้น ${money(calc.principal)} · ดอก ${calc.interestRate}%/เดือน · ${calc.paidInstallments}/${calc.months} งวด${billText}`;
     card.querySelector(".status-pill").textContent = isDone ? "จ่ายครบแล้ว" : `เหลือ ${calc.months - calc.paidInstallments} งวด`;
     card.querySelector(".status-pill").classList.toggle("done", isDone);
     card.querySelector('[data-field="monthlyPayment"]').textContent = money(calc.monthlyPayment);
@@ -225,14 +333,21 @@ function render() {
   renderList();
 }
 
-function updatePaidInstallments(id, change) {
-  debts = debts.map((debt) => {
-    if (debt.id !== id) return debt;
-    const nextPaid = clamp((Number(debt.paidInstallments) || 0) + change, 0, Number(debt.months) || 1);
-    return { ...debt, paidInstallments: nextPaid };
-  });
-  saveDebts();
+async function updatePaidInstallments(id, change) {
+  const debt = debts.find((item) => item.id === id);
+  if (!debt) return;
+
+  const nextPaid = clamp((Number(debt.paidInstallments) || 0) + change, 0, Number(debt.months) || 1);
+  const updatedDebt = { ...debt, paidInstallments: nextPaid };
+  debts = debts.map((item) => (item.id === id ? updatedDebt : item));
   render();
+
+  try {
+    await persistDebt(updatedDebt);
+  } catch {
+    alert("บันทึกข้อมูลกลางไม่สำเร็จ ลองรีเฟรชแล้วทำใหม่อีกครั้งครับ");
+    await loadDebts();
+  }
 }
 
 function editDebt(id) {
@@ -245,25 +360,36 @@ function editDebt(id) {
   principalInput.value = numberWithCommas(debt.principal);
   monthsInput.value = debt.months;
   interestRateInput.value = debt.interestRate;
+  billingDayInput.value = debt.billingDay || "";
   paidInstallmentsInput.value = debt.paidInstallments;
   resetButton.textContent = "ยกเลิกแก้ไข";
   form.querySelector(".primary-button").textContent = "อัปเดตรายการ";
   form.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function deleteDebt(id) {
+async function deleteDebt(id) {
   const debt = debts.find((item) => item.id === id);
   if (!debt || !confirm(`ลบรายการ "${debt.name}" ใช่ไหม?`)) return;
+
+  const previousDebts = debts;
   debts = debts.filter((item) => item.id !== id);
-  saveDebts();
   render();
+
+  try {
+    await removeDebt(id);
+  } catch {
+    debts = previousDebts;
+    render();
+    alert("ลบข้อมูลกลางไม่สำเร็จ ลองใหม่อีกครั้งครับ");
+  }
 }
 
 function downloadBackup() {
   const backup = {
     app: "shopee-debt-tracker",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
+    storage: onlineStorage ? "database" : "local",
     debts
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
@@ -285,6 +411,7 @@ function normalizeImportedDebts(value) {
     .map((item) => {
       const months = Math.max(parseInt(item.months, 10) || 1, 1);
       const principal = Number(item.principal) || 0;
+      const billingDay = parseInt(item.billingDay, 10);
       return {
         id: item.id || createId(),
         name: String(item.name || "").trim(),
@@ -292,7 +419,9 @@ function normalizeImportedDebts(value) {
         principal,
         months,
         interestRate: Number(item.interestRate) || 0,
-        paidInstallments: clamp(parseInt(item.paidInstallments, 10) || 0, 0, months)
+        billingDay: Number.isFinite(billingDay) ? clamp(billingDay, 1, 31) : null,
+        paidInstallments: clamp(parseInt(item.paidInstallments, 10) || 0, 0, months),
+        createdAt: item.createdAt || new Date().toISOString()
       };
     })
     .filter((item) => item.name && item.startDate && item.principal > 0);
@@ -302,7 +431,7 @@ function importBackup(file) {
   if (!file) return;
   const reader = new FileReader();
 
-  reader.addEventListener("load", () => {
+  reader.addEventListener("load", async () => {
     try {
       const importedDebts = normalizeImportedDebts(JSON.parse(reader.result));
       if (!importedDebts || importedDebts.length === 0) {
@@ -311,12 +440,13 @@ function importBackup(file) {
       }
 
       debts = importedDebts;
-      saveDebts();
+      await persistAllDebts();
       resetForm();
       render();
       alert(`นำเข้าข้อมูลแล้ว ${debts.length} รายการ`);
     } catch {
-      alert("อ่านไฟล์ไม่สำเร็จ ลองเลือกไฟล์ JSON ที่สำรองจากเว็บนี้อีกครั้งครับ");
+      alert("อ่านหรือบันทึกไฟล์ไม่สำเร็จ ลองเลือกไฟล์ JSON ที่สำรองจากเว็บนี้อีกครั้งครับ");
+      await loadDebts();
     } finally {
       importFileInput.value = "";
     }
@@ -325,7 +455,18 @@ function importBackup(file) {
   reader.readAsText(file);
 }
 
-form.addEventListener("submit", (event) => {
+function filterDecimalInput(input, allowComma = false) {
+  const pattern = allowComma ? /[^0-9,.]/g : /[^0-9.]/g;
+  const clean = input.value.replace(pattern, "");
+  const parts = clean.split(".");
+  input.value = parts.length > 1 ? `${parts.shift()}.${parts.join("")}` : clean;
+}
+
+function filterIntegerInput(input) {
+  input.value = input.value.replace(/[^0-9]/g, "");
+}
+
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const debt = getFormDebt();
 
@@ -334,19 +475,33 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
+  const previousDebts = debts;
   const existingIndex = debts.findIndex((item) => item.id === debt.id);
   if (existingIndex >= 0) {
-    debts[existingIndex] = debt;
+    debts = debts.map((item) => (item.id === debt.id ? debt : item));
   } else {
-    debts.unshift(debt);
+    debts = [debt, ...debts];
   }
 
-  saveDebts();
   resetForm();
   render();
+
+  try {
+    await persistDebt(debt);
+  } catch {
+    debts = previousDebts;
+    render();
+    alert("บันทึกข้อมูลกลางไม่สำเร็จ ลองใหม่อีกครั้งครับ");
+  }
 });
 
 resetButton.addEventListener("click", resetForm);
+
+principalInput.addEventListener("input", () => filterDecimalInput(principalInput, true));
+interestRateInput.addEventListener("input", () => filterDecimalInput(interestRateInput));
+monthsInput.addEventListener("input", () => filterIntegerInput(monthsInput));
+billingDayInput.addEventListener("input", () => filterIntegerInput(billingDayInput));
+paidInstallmentsInput.addEventListener("input", () => filterIntegerInput(paidInstallmentsInput));
 
 principalInput.addEventListener("focus", () => {
   principalInput.value = String(parseAmount(principalInput.value) || "");
@@ -361,14 +516,23 @@ exportButton.addEventListener("click", downloadBackup);
 importButton.addEventListener("click", () => importFileInput.click());
 importFileInput.addEventListener("change", () => importBackup(importFileInput.files[0]));
 
-clearAllButton.addEventListener("click", () => {
+clearAllButton.addEventListener("click", async () => {
   if (debts.length === 0) return;
   if (!confirm("ล้างข้อมูลทั้งหมดใช่ไหม?")) return;
+
+  const previousDebts = debts;
   debts = [];
-  saveDebts();
   resetForm();
   render();
+
+  try {
+    await clearDebts();
+  } catch {
+    debts = previousDebts;
+    render();
+    alert("ล้างข้อมูลกลางไม่สำเร็จ ลองใหม่อีกครั้งครับ");
+  }
 });
 
 resetForm();
-render();
+loadDebts();

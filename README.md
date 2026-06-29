@@ -4,35 +4,25 @@
 
 ## ใช้งานในเครื่อง
 
-เปิดผ่าน local server:
+ติดตั้ง dependency แล้วรันเว็บ:
 
 ```bash
-python3 -m http.server 5173
+npm install
+npm start
 ```
 
 แล้วเข้า:
 
 ```text
-http://localhost:5173
+http://localhost:3000
 ```
 
 ## การเก็บข้อมูลตอนนี้
 
-เวอร์ชันแรกเก็บข้อมูลใน `localStorage` ของ browser ภายใต้ key:
+บน Render ข้อมูลจะเก็บใน PostgreSQL ผ่าน API กลาง ทำให้เปิดจากคอมหรือมือถือแล้วเห็นข้อมูลชุดเดียวกัน
 
-```text
-shopeeDebtTracker.items
-```
-
-ถ้าเปลี่ยน browser, เปลี่ยน domain/port, หรือล้าง site data ข้อมูลจะไม่ตามไปด้วย
-
-ในหน้าเว็บมีปุ่ม `สำรองข้อมูล` เพื่อ export เป็นไฟล์ JSON และ `นำเข้าข้อมูล` เพื่อ restore กลับมาได้
+ถ้าเปิดในเครื่องโดยยังไม่ได้ตั้ง `DATABASE_URL` เว็บจะ fallback ไปเก็บใน `localStorage` ของ browser และมีปุ่ม `สำรองข้อมูล` / `นำเข้าข้อมูล` เป็น JSON
 
 ## Deploy บน Render
 
-เริ่มแบบง่ายสุดด้วย Static Site:
-
-- Build Command: เว้นว่าง
-- Publish Directory: `.`
-
-ถ้าต้องการเก็บข้อมูลข้ามเครื่องในเฟสถัดไป แนะนำเพิ่ม backend API และใช้ PostgreSQL
+ใช้ Blueprint จากไฟล์ `render.yaml` ใน repo ได้เลย โดย Render จะสร้าง Web Service และ PostgreSQL ให้

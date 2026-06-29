@@ -17,7 +17,7 @@
           <h1 id="page-title">ยอดผ่อนทั้งหมด</h1>
         </div>
         <div class="top-actions">
-          <span class="storage-pill">เก็บบนเครื่องนี้</span>
+          <span class="storage-pill" id="storageStatus">กำลังเชื่อมข้อมูลกลาง</span>
           <button class="ghost-button" id="exportButton" type="button">สำรองข้อมูล</button>
           <button class="ghost-button" id="importButton" type="button">นำเข้าข้อมูล</button>
           <button class="ghost-button" id="clearAllButton" type="button">ล้างข้อมูล</button>
@@ -65,25 +65,31 @@
             </label>
             <label>
               <span>ยอดเงินที่กด</span>
-              <input id="principal" type="text" inputmode="decimal" placeholder="0.00" required>
+              <input id="principal" type="text" inputmode="decimal" pattern="[0-9,.]*" placeholder="0.00" required>
             </label>
           </div>
 
           <div class="field-row">
             <label>
               <span>ผ่อนกี่เดือน</span>
-              <input id="months" type="number" min="1" step="1" placeholder="6" required>
+              <input id="months" type="number" min="1" step="1" placeholder="ไม่กรอก = 1 งวด">
             </label>
             <label>
               <span>ดอกเบี้ยต่อเดือน (%)</span>
-              <input id="interestRate" type="number" min="0" step="0.01" placeholder="0.00" required>
+              <input id="interestRate" type="text" inputmode="decimal" pattern="[0-9.]*" placeholder="0.00" required>
             </label>
           </div>
 
-          <label>
-            <span>จ่ายไปแล้วกี่งวด</span>
-            <input id="paidInstallments" type="number" min="0" step="1" placeholder="0" required>
-          </label>
+          <div class="field-row">
+            <label>
+              <span>วันครบกำหนดชำระ</span>
+              <input id="billingDay" type="number" min="1" max="31" step="1" placeholder="เช่น 25">
+            </label>
+            <label>
+              <span>จ่ายไปแล้วกี่งวด</span>
+              <input id="paidInstallments" type="number" min="0" step="1" placeholder="0" required>
+            </label>
+          </div>
 
           <div class="form-actions">
             <button class="primary-button" type="submit">บันทึกรายการ</button>

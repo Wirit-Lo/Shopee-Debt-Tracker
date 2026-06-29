@@ -1,5 +1,6 @@
 services:
-  - type: static
+  - type: web
     name: shopee-debt-tracker
+    runtime: static
     buildCommand: ""
     staticPublishPath: .

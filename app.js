@@ -237,7 +237,7 @@ function buildSchedule(debt) {
 }
 
 function getFormDebt() {
-  const months = Math.max(parseInt(monthsInput.value, 10) || 1, 1);
+  const months = parseInt(monthsInput.value, 10);
   const billingDay = parseInt(billingDayInput.value, 10);
 
   return {
@@ -245,10 +245,10 @@ function getFormDebt() {
     name: nameInput.value.trim(),
     startDate: startDateInput.value,
     principal: parseAmount(principalInput.value),
-    months,
+    months: Number.isFinite(months) ? Math.max(months, 1) : 0,
     interestRate: parseAmount(interestRateInput.value),
     billingDay: Number.isFinite(billingDay) ? clamp(billingDay, 1, 31) : null,
-    paidInstallments: clamp(parseInt(paidInstallmentsInput.value, 10) || 0, 0, months),
+    paidInstallments: clamp(parseInt(paidInstallmentsInput.value, 10) || 0, 0, Number.isFinite(months) ? Math.max(months, 1) : 0),
     createdAt: debtIdInput.value
       ? debts.find((item) => item.id === debtIdInput.value)?.createdAt || new Date().toISOString()
       : new Date().toISOString()
@@ -470,8 +470,8 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const debt = getFormDebt();
 
-  if (!debt.name || !debt.startDate || debt.principal <= 0) {
-    alert("กรอกชื่อ วันที่ และยอดเงินให้ครบก่อนนะครับ");
+  if (!debt.name || !debt.startDate || debt.principal <= 0 || debt.months <= 0) {
+    alert("กรอกชื่อ วันที่ ยอดเงิน และจำนวนเดือนผ่อนให้ครบก่อนนะครับ");
     return;
   }
 

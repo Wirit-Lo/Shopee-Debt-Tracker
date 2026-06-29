@@ -20,7 +20,8 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.static(__dirname));
 
 function normalizeDebt(value) {
-  const months = Math.max(parseInt(value.months, 10) || 1, 1);
+  const rawMonths = parseInt(value.months, 10);
+  const months = Number.isFinite(rawMonths) ? Math.max(rawMonths, 1) : 0;
   const billingDay = parseInt(value.billingDay, 10);
   const principal = Number(value.principal) || 0;
 
@@ -38,7 +39,7 @@ function normalizeDebt(value) {
 }
 
 function validateDebt(debt) {
-  return debt.id && debt.name && debt.startDate && debt.principal > 0;
+  return debt.id && debt.name && debt.startDate && debt.principal > 0 && debt.months > 0;
 }
 
 async function ensureDatabase() {

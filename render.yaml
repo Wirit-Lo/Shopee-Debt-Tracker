@@ -1,0 +1,5 @@
+services:
+  - type: static
+    name: shopee-debt-tracker
+    buildCommand: ""
+    staticPublishPath: .

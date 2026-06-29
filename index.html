@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shopee Debt Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Shopee Debt Tracker</p>
+          <h1 id="page-title">ยอดผ่อนทั้งหมด</h1>
+        </div>
+        <button class="ghost-button" id="clearAllButton" type="button">ล้างข้อมูล</button>
+      </section>
+
+      <section class="summary-grid" aria-label="สรุปยอดรวม">
+        <article class="summary-tile">
+          <span>ยอดหนี้รวม</span>
+          <strong id="totalDebt">฿0</strong>
+        </article>
+        <article class="summary-tile">
+          <span>จ่ายไปแล้ว</span>
+          <strong id="totalPaid">฿0</strong>
+        </article>
+        <article class="summary-tile highlight">
+          <span>ยอดคงเหลือ</span>
+          <strong id="totalRemaining">฿0</strong>
+        </article>
+        <article class="summary-tile">
+          <span>ค่างวดเดือนถัดไป</span>
+          <strong id="nextMonthDue">฿0</strong>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <form class="entry-form" id="debtForm" autocomplete="off">
+          <div class="form-heading">
+            <h2>เพิ่มรายการ</h2>
+            <button class="secondary-button" id="resetButton" type="button">เริ่มใหม่</button>
+          </div>
+
+          <input type="hidden" id="debtId">
+
+          <label>
+            <span>ชื่อรายการ / คนยืม</span>
+            <input id="name" type="text" placeholder="เช่น ของเรา, บี, ค่าโทรศัพท์" required>
+          </label>
+
+          <div class="field-row">
+            <label>
+              <span>วันที่กดเงิน</span>
+              <input id="startDate" type="date" required>
+            </label>
+            <label>
+              <span>ยอดเงินที่กด</span>
+              <input id="principal" type="number" min="0" step="0.01" placeholder="0.00" required>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label>
+              <span>ผ่อนกี่เดือน</span>
+              <input id="months" type="number" min="1" step="1" placeholder="6" required>
+            </label>
+            <label>
+              <span>ดอกเบี้ยต่อเดือน (%)</span>
+              <input id="interestRate" type="number" min="0" step="0.01" placeholder="0.00" required>
+            </label>
+          </div>
+
+          <label>
+            <span>จ่ายไปแล้วกี่งวด</span>
+            <input id="paidInstallments" type="number" min="0" step="1" placeholder="0" required>
+          </label>
+
+          <div class="form-actions">
+            <button class="primary-button" type="submit">บันทึกรายการ</button>
+          </div>
+        </form>
+
+        <section class="list-panel" aria-labelledby="list-title">
+          <div class="list-heading">
+            <h2 id="list-title">รายการผ่อน</h2>
+            <span id="itemCount">0 รายการ</span>
+          </div>
+          <div class="empty-state" id="emptyState">
+            <strong>ยังไม่มีรายการ</strong>
+            <p>เพิ่มรายการแรกเพื่อให้เว็บช่วยคำนวณยอดที่ต้องจ่ายและยอดคงเหลือในแต่ละเดือน</p>
+          </div>
+          <div class="debt-list" id="debtList"></div>
+        </section>
+      </section>
+    </main>
+
+    <template id="debtCardTemplate">
+      <article class="debt-card">
+        <div class="card-main">
+          <div>
+            <h3></h3>
+            <p class="meta"></p>
+          </div>
+          <span class="status-pill"></span>
+        </div>
+
+        <div class="metric-grid">
+          <div>
+            <span>ค่างวด</span>
+            <strong data-field="monthlyPayment"></strong>
+          </div>
+          <div>
+            <span>จ่ายแล้ว</span>
+            <strong data-field="paidAmount"></strong>
+          </div>
+          <div>
+            <span>คงเหลือ</span>
+            <strong data-field="remainingAmount"></strong>
+          </div>
+          <div>
+            <span>งวดถัดไป</span>
+            <strong data-field="nextDueDate"></strong>
+          </div>
+        </div>
+
+        <div class="progress-wrap" aria-hidden="true">
+          <div class="progress-bar"></div>
+        </div>
+
+        <div class="card-actions">
+          <button class="icon-button decrease" type="button" aria-label="ลดยอดจ่ายแล้ว">−</button>
+          <button class="icon-button increase" type="button" aria-label="เพิ่มยอดจ่ายแล้ว">+</button>
+          <button class="text-button edit" type="button">แก้ไข</button>
+          <button class="text-button danger delete" type="button">ลบ</button>
+        </div>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -56,6 +56,27 @@ button {
   margin-bottom: 20px;
 }
 
+.top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.storage-pill {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(31, 143, 104, 0.28);
+  border-radius: 999px;
+  background: #f1fbf6;
+  color: var(--green);
+  padding: 7px 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
 .eyebrow {
   margin: 0 0 4px;
   color: var(--orange-dark);
@@ -294,6 +315,55 @@ input:focus {
   background: linear-gradient(90deg, var(--orange), var(--yellow), var(--green));
 }
 
+.schedule-panel {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.schedule-panel summary {
+  padding: 10px 12px;
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.schedule-list {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+}
+
+.schedule-row {
+  display: grid;
+  grid-template-columns: 70px minmax(110px, 1fr) minmax(120px, 1fr) minmax(160px, 1.4fr);
+  gap: 10px;
+  align-items: center;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.schedule-row span,
+.schedule-row small {
+  color: var(--muted);
+}
+
+.schedule-row strong {
+  overflow-wrap: anywhere;
+}
+
+.schedule-row.is-paid {
+  background: #f1fbf6;
+}
+
+.schedule-row.is-paid small {
+  color: var(--green);
+  font-weight: 700;
+}
+
 .card-actions {
   justify-content: flex-end;
   margin-top: 14px;
@@ -338,6 +408,11 @@ input:focus {
     flex-direction: column;
   }
 
+  .top-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .summary-grid,
   .field-row,
   .metric-grid {
@@ -364,5 +439,14 @@ input:focus {
     width: 100%;
     display: grid;
     grid-template-columns: 38px 38px 1fr 1fr;
+  }
+
+  .schedule-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .schedule-row strong,
+  .schedule-row small {
+    grid-column: span 2;
   }
 }

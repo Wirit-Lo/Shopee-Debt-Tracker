@@ -26,6 +26,8 @@ shopeeDebtTracker.items
 
 ถ้าเปลี่ยน browser, เปลี่ยน domain/port, หรือล้าง site data ข้อมูลจะไม่ตามไปด้วย
 
+ในหน้าเว็บมีปุ่ม `สำรองข้อมูล` เพื่อ export เป็นไฟล์ JSON และ `นำเข้าข้อมูล` เพื่อ restore กลับมาได้
+
 ## Deploy บน Render
 
 เริ่มแบบง่ายสุดด้วย Static Site:
@@ -34,4 +36,3 @@ shopeeDebtTracker.items
 - Publish Directory: `.`
 
 ถ้าต้องการเก็บข้อมูลข้ามเครื่องในเฟสถัดไป แนะนำเพิ่ม backend API และใช้ PostgreSQL
-
